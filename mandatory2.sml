@@ -59,7 +59,7 @@ fun initialState nil acc = acc
                                                                                                                             else find var));
 
 (* TODO: take direction into account *)
-fun calculatePos (x,y) N i "R" = (x+i,y)	
+fun calculatePos (x,y) N i "R" = (x+i,y)
 	| calculatePos (x,y) S i "R" = (x-i,y)
 	| calculatePos (x,y) E i "R" = (x,y-i)
 	| calculatePos (x,y) W i "R" = (x,y+i)
@@ -88,7 +88,7 @@ fun calculateDir dir "F" = dir
 	| calculateDir E "B" = W
 	| calculateDir W "R" = N
 	| calculateDir W "L" = S
-	| calculateDir W "B" = E					
+	| calculateDir W "B" = E;
 
 (* Step takes a state and a list of statements. Execute the first statement, and obtain an intermediate state.
    If we need to continue (i.e. not STOP), then use intermediate state to interpret remaining statements.
@@ -146,8 +146,4 @@ let
 in
 	print "\n-Testprogram number 1-\n";
 	interpret(P(Size(10,10), R([], test1)))
-end;	
-	
-
-
-
+end;
