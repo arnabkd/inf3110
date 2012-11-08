@@ -59,15 +59,15 @@ fun initialState nil acc = acc
                                                                                                                             else find var));
 
 (* TODO: take direction into account *)
-fun calculatePos (x,y) N i "R" = (x+i,y)	
+fun calculatePos (x,y) N i "R" = (x+i,y)
 	| calculatePos (x,y) S i "R" = (x-i,y)
 	| calculatePos (x,y) E i "R" = (x,y-i)
 	| calculatePos (x,y) W i "R" = (x,y+i)
 	| calculatePos (x,y) N i "F" = (x,y+i)
 	| calculatePos (x,y) S i "F" = (x,y-i)
 	| calculatePos (x,y) E i "F" = (x+i,y)
-	| calculatePos (x,y) W i "F" = (x-i,y);	
-	
+	| calculatePos (x,y) W i "F" = (x-i,y);
+
 
 (* Step takes a state and a list of statements. Execute the first statement, and obtain an intermediate state.
    If we need to continue (i.e. not STOP), then use intermediate state to interpret remaining statements.
@@ -78,11 +78,11 @@ and step state (Stop::_) = state
   (* START *)
   | step (State (b,p,pos,dir,bs)) (Start(e1, e2, d)::ss) = let val pos = (2,3);
 													  	   val dir = d;
-														   in print "Start(2, 3)\n"; 
+														   in print "Start(2, 3)\n";
 														   step (State (b,Up,pos,dir,bs)) ss end
   (* RIGHT *)
   | step (State (b,p,pos,dir,bs)) (Right e::ss) = let val v = eval bs e
-                                                  val s = State (b,p, calculatePos pos dir v "R", dir, bs); 
+                                                  val s = State (b,p, calculatePos pos dir v "R", dir, bs);
 												  val pr = "Right(" ^ Int.toString (v) ^ ")\n"
                                                   in print pr; step s ss end
   (* LEFT *)
@@ -120,8 +120,4 @@ let
 in
 	print "\n-Testprogram number 1-\n";
 	interpret(P(Size(10,10), R([], test1)))
-end;	
-	
-
-
-
+end;
