@@ -1,5 +1,7 @@
 
-datatype exp = Ident of string | Const of int; (* incomplete *)
+datatype exp = Ident of string | Const of int
+               | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp
+			   | LessThan of exp * exp | Equal of exp * exp | MoreThan of exp * exp; (* incomplete *)
 datatype decl = Var of string * exp;
 datatype direction = N | S | E | W;
 datatype move = Forward | Backward | Left | Right;
