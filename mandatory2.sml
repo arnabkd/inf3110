@@ -8,8 +8,9 @@ datatype stmt = Start of exp*exp*direction
               	(* Pen: *)
 	      	  	| PenUp | PenDown
               	(* Move: *)
-              	| Forward of exp | Backward of exp | Right of exp | Left of exp;
-
+              	| Forward of exp | Backward of exp | Right of exp | Left of exp
+				(* Control: *)
+				| While of exp * stmt list | IfThenElse of exp * stmt list;
 datatype grid = Size of int * int;
 datatype robot = R of decl list * stmt list;
 datatype program = P of grid * robot;
@@ -124,10 +125,10 @@ and step state (Stop::_) = state
 												  val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
                                                   in print pr; step s ss end
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end;
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end;
 
 
 
