@@ -1,4 +1,3 @@
-
 datatype exp = Ident of string | Const of int
                | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp
 			   | LessThan of exp * exp | Equal of exp * exp | MoreThan of exp * exp; (* incomplete *)
@@ -50,9 +49,12 @@ datatype pen = Up | Down;
 type position = int*int;
 type board = unit; (* ... *)
 type bindings = string -> int option;
+
 datatype state = State of board * pen * position * direction * bindings;
 
 fun eval binding (Const i) = i 
+  | eval binding (Ident var) = valOf (binding var)
+  | eval binding Plus (a,b) = eval (a) + eval (b)
   | eval binding _         = raise Fail "not implemented yet"; (* ... *)
 
 (* Could use `fold` here *)
