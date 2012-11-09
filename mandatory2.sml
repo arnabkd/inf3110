@@ -126,6 +126,17 @@ and step state (Stop::_) = state
                                                   val s = State (b,p, calculatePos pos dir v "B", calculateDir dir "B", bs);
 												  val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
                                                   in print pr; step s ss end
+  (* WHILE *)
+  | step (State (b,_,pos,dir,bs)) (While(e, sl)::ss) = let val do = eval e
+													   in print "While()\n";
+													   step (State (b,Down,pos,dir,bs)) ss 
+													   end
+  (* IF *)
+  | step (State (b,_,pos,dir,bs)) (IfThenElse(e, sl)::ss) = let val do = eval e
+													   		in print "If()\n";
+													   		step (State (b,Down,pos,dir,bs)) ss 
+													   		end													
+  
   (* PENUP *)
   | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
 
