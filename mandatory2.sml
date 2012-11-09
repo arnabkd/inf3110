@@ -1,6 +1,8 @@
-datatype exp = Ident of string | Const of int
-               | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp
-			   | LessThan of exp * exp | Equal of exp * exp | MoreThan of exp * exp; (* incomplete *)
+datatype exp = Ident of string | Const of int | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp;
+datatype boolExp = LessThan of exp * exp | MoreThan of exp * exp | Equal of exp * exp;
+
+
+ (* incomplete *)
 datatype decl = Var of string * exp;
 datatype direction = N | S | E | W;
 datatype move = Forward | Backward | Left | Right;
@@ -56,9 +58,14 @@ fun eval binding (Const i) = i
   | eval binding (Ident var) = valOf (binding var)
   | eval binding (Plus (a,b)) = (eval binding a) + (eval binding b)
   | eval binding (Minus (a,b)) = (eval binding a) - (eval binding b)
-  | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b)
-  | eval binding _         = raise Fail "not implemented yet"; (* ... *)
+  | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b);
+  (*| eval binding _ = raise Fail "not implemented yet"; *)
 
+
+fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b)
+  | evalBoolExp bindings (Equal (a,b)) = (eval bindings a) = (eval bindings b)
+  | evalBoolExp bindings (MoreThan (a,b)) = (eval bindings a) > (eval bindings b);
+  
 (* Could use `fold` here *)
 fun initialState nil acc = acc
   | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
