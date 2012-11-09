@@ -11,7 +11,9 @@ datatype stmt = Start of exp*exp*direction
               	(* Pen: *)
 	      	  	| PenUp | PenDown
               	(* Move: *)
-              	| Forward of exp | Backward of exp | Right of exp | Left of exp;
+              	| Forward of exp | Backward of exp | Right of exp | Left of exp
+				(* While *)
+				| While of boolExp * stmt list;
 
 datatype grid = Size of int * int;
 datatype robot = R of decl list * stmt list;
@@ -140,7 +142,10 @@ and step state (Stop::_) = state
   | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end;
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end
+  
+  (* WHILE*)
+  ;
 
 
 
