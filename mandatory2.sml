@@ -54,7 +54,9 @@ datatype state = State of board * pen * position * direction * bindings;
 
 fun eval binding (Const i) = i 
   | eval binding (Ident var) = valOf (binding var)
-  | eval binding Plus (a,b) = eval (a) + eval (b)
+  | eval binding (Plus (a,b)) = (eval binding a) + (eval binding b)
+  | eval binding (Minus (a,b)) = (eval binding a) - (eval binding b)
+  | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b)
   | eval binding _         = raise Fail "not implemented yet"; (* ... *)
 
 (* Could use `fold` here *)
@@ -145,8 +147,14 @@ uncaught exception Match [nonexhaustive match failure]
 *)
 
 let
-	val decl1 = [Var ("x", Const 5) ,Var ("y", Ident "x")];
-	val test1 = [Start (Const 0, Const 0, E), Forward(Const 3), PenDown, Left(Const 2), Stop]
+	val decl1 = [Var ("x", Const 5) 
+	,Var ("y", Ident "x")
+	,Var("x", Const 42)];
+	val test1 = [Start (Const 0, Const 0, E)
+	            , Forward(Const 3)
+				, PenDown
+				, Left(Const 2)
+				, Stop]
 in
 	print "\n-Testprogram number 1-\n";
 	interpret(P(Size(10,10), R([], test1)))
