@@ -1,6 +1,8 @@
-datatype exp = Ident of string | Const of int
-               | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp
-			   | LessThan of exp * exp | Equal of exp * exp | MoreThan of exp * exp; (* incomplete *)
+datatype exp = Ident of string | Const of int | Plus of exp * exp | Minus of exp * exp | Mult of exp * exp;
+datatype boolExp = LessThan of exp * exp | MoreThan of exp * exp | Equal of exp * exp;
+
+
+ (* incomplete *)
 datatype decl = Var of string * exp;
 datatype direction = N | S | E | W;
 datatype move = Forward | Backward | Left | Right;
@@ -10,8 +12,13 @@ datatype stmt = Start of exp*exp*direction
 	      	  	| PenUp | PenDown
               	(* Move: *)
               	| Forward of exp | Backward of exp | Right of exp | Left of exp
-				(* Control: *)
-				| While of exp * stmt list | IfThenElse of exp * stmt list;
+				(* Assignment *)
+				| Assignment of string * exp
+				(* If *)
+				| IfThenElse of boolExp * stmt list * stmt list
+				(* While *)
+				| While of boolExp * stmt list;
+
 datatype grid = Size of int * int;
 datatype robot = R of decl list * stmt list;
 datatype program = P of grid * robot;
@@ -57,9 +64,14 @@ fun eval binding (Const i) = i
   | eval binding (Ident var) = valOf (binding var)
   | eval binding (Plus (a,b)) = (eval binding a) + (eval binding b)
   | eval binding (Minus (a,b)) = (eval binding a) - (eval binding b)
-  | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b)
-  | eval binding _         = raise Fail "not implemented yet"; (* ... *)
+  | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b);
+  (*| eval binding _ = raise Fail "not implemented yet"; *)
 
+
+fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b)
+  | evalBoolExp bindings (Equal (a,b)) = (eval bindings a) = (eval bindings b)
+  | evalBoolExp bindings (MoreThan (a,b)) = (eval bindings a) > (eval bindings b);
+  
 (* Could use `fold` here *)
 fun initialState nil acc = acc
   | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
@@ -130,22 +142,54 @@ and step state (Stop::_) = state
                                                   val s = State (b,p, calculatePos pos dir v "B", calculateDir dir "B", bs);
 												  val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
                                                   in print pr; step s ss end
-  (* WHILE *)
-  | step (State (b,_,pos,dir,bs)) (While(e, sl)::ss) = let val do = eval e
-													   in print "While()\n";
-													   step (State (b,Down,pos,dir,bs)) ss 
-													   end
   (* IF *)
-  | step (State (b,_,pos,dir,bs)) (IfThenElse(e, sl)::ss) = let val do = eval e
-													   		in print "If()\n";
-													   		step (State (b,Down,pos,dir,bs)) ss 
-													   		end													
+  | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let 
+																	val doIt = evalBoolExp bs e
+																  in
+																	if doIt = true then
+																	let val new = step (State (b,p,pos,dir,bs)) sl1
+	    															in
+																		step new ss
+	    															end
+																  else
+	    															let val new = step (State (b,p,pos,dir,bs)) sl2
+	    															in
+																		step new ss
+	    															end
+													   			  end
+													
+														
   
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenUp()\n"; step (State (b,Down,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end;
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Up,pos,dir,bs)) ss end
+  
+  (* ASSIGNMENT *)
+  | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =
+  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
+	  else bs var
+  in
+	  step (State (b,p,pos,dir,newVal)) ss
+  end
+  
+  (* WHILE*)
+  | step (State (b,p,pos,dir,bs)) 
+  (While (conditional, stmtlist)::ss) = 
+  let val conditionalVal = evalBoolExp bs conditional
+
+  in
+	  if conditionalVal then
+	  	let val currentState = step (State (b,p,pos,dir,bs)) stmtlist
+	  	in
+		  step currentState (While(conditional,stmtlist)::ss)
+	  	end
+	  else
+	  	step (State (b,p,pos,dir,bs)) ss
+  end
+
+| step state [] = state;
 
 
 
@@ -160,12 +204,14 @@ uncaught exception Match [nonexhaustive match failure]
 
 let
 	val decl1 = [Var ("x", Const 5) 
-	,Var ("y", Ident "x")
-	,Var("x", Const 42)];
+	,Var ("y", Ident "x")];
 	val test1 = [Start (Const 0, Const 0, E)
 	            , Forward(Const 3)
 				, PenDown
 				, Left(Const 2)
+				, Assignment ("x", Const 39)
+				(*, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp]) *)
+				, IfThenElse((LessThan (Const 3, Const 4)), [PenDown], [])
 				, Stop]
 in
 	print "\n-Testprogram number 1-\n";
