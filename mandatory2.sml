@@ -12,6 +12,8 @@ datatype stmt = Start of exp*exp*direction
 	      	  	| PenUp | PenDown
               	(* Move: *)
               	| Forward of exp | Backward of exp | Right of exp | Left of exp
+				(* Assignment *)
+				| Assignment of string * exp
 				(* While *)
 				| While of boolExp * stmt list;
 
@@ -139,13 +141,33 @@ and step state (Stop::_) = state
 												  val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
                                                   in print pr; step s ss end
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenDown()\n"; step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenUp()\n"; step (State (b,Down,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenUp()\n"; step (State (b,Up,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Up,pos,dir,bs)) ss end
+  
+  (* ASSIGNMENT *)
+  | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =
+  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
+	  else bs var
+  in
+	  step (State (b,p,pos,dir,newVal)) ss
+  end
   
   (* WHILE*)
-  ;
+  | step (State (b,p,pos,dir,bs)) 
+  (While (conditional, stmtlist)::ss) = 
+  let val conditionalVal = evalBoolExp bs conditional
+
+  in
+	  if conditionalVal then
+	  	let val currentState = step (State (b,p,pos,dir,bs)) stmtlist
+	  	in
+		  step currentState (While(conditional,stmtlist)::ss)
+	  	end
+	  else
+	  	step (State (b,p,pos,dir,bs)) ss
+  end;
 
 
 
@@ -160,12 +182,14 @@ uncaught exception Match [nonexhaustive match failure]
 
 let
 	val decl1 = [Var ("x", Const 5) 
-	,Var ("y", Ident "x")
-	,Var("x", Const 42)];
+	,Var ("y", Ident "x")];
 	val test1 = [Start (Const 0, Const 0, E)
 	            , Forward(Const 3)
 				, PenDown
 				, Left(Const 2)
+				, Assignment ("x", Const 39)
+				(*, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp]) *)
+				  
 				, Stop]
 in
 	print "\n-Testprogram number 1-\n";
