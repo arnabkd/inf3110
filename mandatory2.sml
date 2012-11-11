@@ -96,15 +96,27 @@ fun calculateDir dir "F" = dir
 fun prettyPrintSpace 0 = " "
   | prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
 
-fun prettyPrintExp (Const i) = Int.toString (i)
-  | prettyPrintExp (Ident var) = var
-  | prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
-  | prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
-  | prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
-
+fun prettyPrintExp (Const i)      = Int.toString (i)
+  | prettyPrintExp (Ident var)    = var
+  | prettyPrintExp (Plus (a,b))   = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
+  | prettyPrintExp (Minus (a,b))  = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
+  | prettyPrintExp (Mult (a,b))   = let (* adds extra parentheses if needed *)
+                                      val x = prettyPrintExp(a)
+                                      val y = prettyPrintExp(b)
+                                    in
+                                     (case a of
+                                          Plus a => "(" ^ x ^ ")"
+                                        | Minus a => "(" ^ x ^ ")"
+                                        | _  => x)
+                                    ^ "*"
+                                    ^ (case b of
+                                          Plus b => "(" ^ y ^ ")"
+                                        | Minus b => "(" ^ y ^ ")"
+                                        | _  => y)
+                                    end
 
 fun prettyPrintBoolExp (LessThan (a,b)) = (prettyPrintExp a) ^ " < " ^ (prettyPrintExp b)
-  | prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
+  | prettyPrintBoolExp (Equal (a,b))    = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
   | prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
 
 fun prettyPrintDirection N = "N"
