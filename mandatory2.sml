@@ -260,6 +260,7 @@ prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n"
 | prettyPrint indent _ = "";
 
 
+(* old testing code
 let
 	val decl1 = [Var ("x", Const 5) 
 	,Var ("y", Ident "x")];
@@ -278,4 +279,96 @@ in
 	print "\n-Testprogram number 1-\n";
 	print (prettyPrint 0 test1);
 	interpret(P(Size(10,10), R([], test1)))
-end;
+end;*)
+
+
+
+(* Menu *)
+fun showtests () = 
+  print ("----------------\n"
+    ^    "Tests available:\n"
+    ^    "* t1()\n"
+    ^    "* t2()\n"
+    ^    "* t4()\n"
+    ^    "----------------\n");
+
+
+
+(* Testing code 1 *)
+fun t1 ():state =
+  let
+    val stmts = [
+      Start(Const 23, Const 30, W),
+      Forward(Const 15),
+      PenDown,
+      Left(Const 15),
+      Right(Plus(Const 2, Const 3)),
+      PenUp,
+      Backward(Plus(Const 10, Const 27)),
+      Stop
+    ]
+  in
+    (* run test *)
+    print "\n** Testprogram number 1 **\n";
+    print (prettyPrint 0 stmts);
+    interpret(P(Size(64, 64), R([], stmts)))
+  end;
+
+(* Testing code 2 *)
+fun t2 ():state =
+  let
+    val decl = [
+      Var("i", Const 5),
+      Var("j", Const 3)
+    ];
+    val stmts = [
+      Start(Const 23, Const 6, W),
+      Forward(Mult(Const 3, Ident "i")),
+      PenDown,
+      Right(Const 15),
+      Left(Const 4),
+      PenUp,
+      Backward(Plus(Plus(Mult(Const 2, Ident "i"), Mult(Const 3, Ident "j")), Const 5)),
+      Stop
+    ]
+  in
+    (* run test *)
+    print "\n** Testprogram number 2 **\n";
+    print (prettyPrint 0 stmts);
+    interpret(P(Size(64, 64), R(decl, stmts)))
+  end;
+
+(* Testing code 3 skipped *)
+
+(* Testing code 4 *)
+fun t4 ():state =
+  let
+    val decl = [
+      Var("i", Const 5),
+      Var("j", Const 3)
+    ];
+    val stmts = [
+      Start(Const 23, Const 6, W),
+      Forward(Mult(Const 3, Ident "i")),
+      PenDown,
+      Right(Const 15),
+      Left(Const 4),
+      PenUp,
+      Backward(Plus(Plus(Mult(Const 2, Ident "i"), Mult(Const 3, Ident "j")), Const 5)),
+      While(MoreThan(Ident "j", Const 0), [
+        Right(Ident "j"),
+        Assignment("j", Minus(Ident "j", Const 1))]),
+      IfThenElse(MoreThan(Ident "i", Const 3), [
+        Forward(Const 14)], [
+        (* else *)
+        Backward(Const 14)]),
+      Stop
+    ]
+  in
+    (* run test *)
+    print "\n** Testprogram number 4 **\n";
+    print (prettyPrint 0 stmts);
+    interpret(P(Size(64, 64), R(decl, stmts)))
+  end;
+
+showtests();
