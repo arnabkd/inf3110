@@ -28,9 +28,9 @@ datatype program = P of grid * robot;
 
 (*val p2 = [Start (Const 0, Const 0, N), Stop];*)
 
-val decls1 = [Var ("x", Const 5)
+(*val decls1 = [Var ("x", Const 5)
              ,Var ("y", Ident "x")
-             ,Var ("z", Ident "a")];
+             ,Var ("z", Ident "a")];*)
 
 (*
 - val State (_,_,_,_,bs) = initialState decls1 (State ((), Up, (0,0), N, fn _ => NONE));
@@ -110,12 +110,99 @@ fun calculateDir dir "F" = dir
   | calculateDir  W  "L" = S
   | calculateDir  W  "B" = E;
 
+
+(* Example:
+
+- interpret (P (nil,[Move (Const 1)]));
+
+uncaught exception Match [nonexhaustive match failure]
+  raised at: m.sml:67.82
+
+*)
+
+fun prettyPrintSpace 0 = " "
+  | prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
+
+fun prettyPrintExp (Const i) = Int.toString (i)
+  | prettyPrintExp (Ident var) = var
+  | prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
+  | prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
+  | prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
+
+
+fun prettyPrintBoolExp (LessThan (a,b)) = (prettyPrintExp a) ^ " < " ^ (prettyPrintExp b)
+  | prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
+  | prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
+
+fun prettyPrintDirection N = "N"
+  | prettyPrintDirection S = "S"
+  | prettyPrintDirection E = "E"
+  | prettyPrintDirection W = "W"
+
+fun prettyPrintDecls (Var (id,x) :: ss) =
+    prettyPrintSpace 0 ^ "var " ^ id ^ " = " ^ (prettyPrintExp x) ^ ";\n" ^ prettyPrintDecl ss
+  | prettyPrintDecl _ = ""
+
+fun prettyPrintStmts indent
+  (* Start *)
+                       (Start (x,y,direction) :: ss) =
+      prettyPrintSpace indent ^ "start("
+    ^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
+    ^ ")\n" ^ prettyPrint indent ss
+
+  (* Pen *)
+  | prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
+  | prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
+
+  (* Move *)
+  | prettyPrint indent (Forward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Forward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Backward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Backward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Right (distance) :: ss) =
+      prettyPrintSpace indent ^ "Right(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Left (distance) :: ss) =
+      prettyPrintSpace indent ^ "Left(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  
+  (* Assignment *)
+  | prettyPrint indent (Assignment(var,e) :: ss) =
+      prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
+  
+  (* While *)
+  | prettyPrint indent (While (boolex, stmtlist)::ss) =
+      prettyPrintSpace indent ^ "While (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+    ^ prettyPrint (indent + 4) stmtlist
+    ^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
+  
+  (* If-Else *)
+  | prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
+      prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+    ^ prettyPrint (indent + 4) ifPart 
+    ^ prettyPrintSpace indent ^ "} " 
+    ^ prettyPrintSpace indent ^ "else {\n" 
+    ^ prettyPrint (indent + 4) elsePart
+    ^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
+  
+  (* Stop *)
+  | prettyPrint indent (Stop :: ss) =
+      prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
+  
+  (* End of recursion *)
+  | prettyPrint indent _ = "";
+
+
 (* Step takes a state and a list of statements. Execute the first statement, and obtain an intermediate state.
    If we need to continue (i.e. not STOP), then use intermediate state to interpret remaining statements.
-   Interpret runs the whole program. TODO: when and how do we stop?
+   Interpret runs the whole program.
 *)
-fun interpret (P (gr,R (decls,stmts))) = step (initialState decls (State ((), Up, (0,0), N, fn _ => NONE))) stmts
-and step state (Stop::_) = state
+fun interpret (P (gr,R (decls,stmts))) =  let in
+                                            print (prettyPrintDecls decls);
+                                            print (prettyPrintStmts 0 stmts);
+                                            step (initialState decls (State ((), Up, (0,0), N, fn _ => NONE))) stmts
+                                          end
+and step
+  (* STOP *)
+    state (Stop::_) = let in print "stop"; state end
 
   (* START *)
   | step (State (b,p,pos,dir,bs)) (Start(ex1, ex2, d)::ss) =  let
@@ -185,84 +272,6 @@ and step state (Stop::_) = state
   | step state [] = state;
 
 
-
-(* Example:
-
-- interpret (P (nil,[Move (Const 1)]));
-
-uncaught exception Match [nonexhaustive match failure]
-  raised at: m.sml:67.82
-
-*)
-
-fun prettyPrintSpace 0 = " "
-  | prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
-
-fun prettyPrintExp (Const i) = Int.toString (i)
-  | prettyPrintExp (Ident var) = var
-  | prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
-  | prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
-  | prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
-
-
-fun prettyPrintBoolExp (LessThan (a,b)) = (prettyPrintExp a) ^ " < " ^ (prettyPrintExp b)
-  | prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
-  | prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
-
-fun prettyPrintDirection N = "N"
-  | prettyPrintDirection S = "S"
-  | prettyPrintDirection E = "E"
-  | prettyPrintDirection W = "W"
-
-
-fun prettyPrint indent
-  (* Start *)
-                       (Start (x,y,direction) :: ss) =
-      prettyPrintSpace indent ^ "start("
-    ^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
-    ^ ")\n" ^ prettyPrint indent ss
-
-  (* Pen *)
-  | prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
-  | prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
-
-  (* Move *)
-  | prettyPrint indent (Forward (distance) :: ss) =
-      prettyPrintSpace indent ^ "Forward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Backward (distance) :: ss) =
-      prettyPrintSpace indent ^ "Backward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Right (distance) :: ss) =
-      prettyPrintSpace indent ^ "Right(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Left (distance) :: ss) =
-      prettyPrintSpace indent ^ "Left(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  
-  (* Assignment *)
-  | prettyPrint indent (Assignment(var,e) :: ss) =
-      prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
-  
-  (* While *)
-  | prettyPrint indent (While (boolex, stmtlist)::ss) =
-      prettyPrintSpace indent ^ "While (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-    ^ prettyPrint (indent + 4) stmtlist
-    ^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
-  
-  (* If-Else *)
-  | prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
-      prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-    ^ prettyPrint (indent + 4) ifPart 
-    ^ prettyPrintSpace indent ^ "} " 
-    ^ prettyPrintSpace indent ^ "else {\n" 
-    ^ prettyPrint (indent + 4) elsePart
-    ^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
-  
-  (* Stop *)
-  | prettyPrint indent (Stop :: ss) =
-      prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
-  
-  (* End of recursion *)
-  | prettyPrint indent _ = "";
-
-
 (* old testing code
 let
 	val decl1 = [Var ("x", Const 5) 
@@ -313,7 +322,6 @@ fun t1 ():state =
   in
     (* run test *)
     print "\n** Testprogram number 1 **\n";
-    print (prettyPrint 0 stmts);
     interpret(P(Size(64, 64), R([], stmts)))
   end;
 
@@ -337,7 +345,6 @@ fun t2 ():state =
   in
     (* run test *)
     print "\n** Testprogram number 2 **\n";
-    print (prettyPrint 0 stmts);
     interpret(P(Size(64, 64), R(decl, stmts)))
   end;
 
@@ -370,7 +377,6 @@ fun t4 ():state =
   in
     (* run test *)
     print "\n** Testprogram number 4 **\n";
-    print (prettyPrint 0 stmts);
     interpret(P(Size(64, 64), R(decl, stmts)))
   end;
 
