@@ -196,61 +196,71 @@ uncaught exception Match [nonexhaustive match failure]
 *)
 
 fun prettyPrintSpace 0 = " "
-| prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
+  | prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
 
 fun prettyPrintExp (Const i) = Int.toString (i)
-| prettyPrintExp (Ident var) = var
-| prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
-| prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
-| prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
+  | prettyPrintExp (Ident var) = var
+  | prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
+  | prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
+  | prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
 
 
 fun prettyPrintBoolExp (LessThan (a,b)) = (prettyPrintExp a) ^ " < " ^ (prettyPrintExp b)
-| prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
-| prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
+  | prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
+  | prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
 
 fun prettyPrintDirection N = "N"
-| prettyPrintDirection S = "S"
-| prettyPrintDirection E = "E"
-| prettyPrintDirection W = "W"
+  | prettyPrintDirection S = "S"
+  | prettyPrintDirection E = "E"
+  | prettyPrintDirection W = "W"
 
 
-fun prettyPrint indent (Start (x,y,direction) :: ss) = prettyPrintSpace indent ^ "start("
-^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
-^ ")\n" ^ prettyPrint indent ss
+fun prettyPrint indent
+  (* Start *)
+                       (Start (x,y,direction) :: ss) =
+      prettyPrintSpace indent ^ "start("
+    ^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
+    ^ ")\n" ^ prettyPrint indent ss
 
-(* Pen *)
-| prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
-| prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
+  (* Pen *)
+  | prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
+  | prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
 
-(* Move *)
-| prettyPrint indent (Forward (distance) :: ss) = prettyPrintSpace indent ^ "Forward (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-| prettyPrint indent (Backward (distance) :: ss) = prettyPrintSpace indent ^ "Backward (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-| prettyPrint indent (Right (distance) :: ss) = prettyPrintSpace indent ^ "Right  (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-| prettyPrint indent (Left (distance) :: ss) = prettyPrintSpace indent ^ "Left (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-
-(* Assignment *)
-| prettyPrint indent (Assignment(var,e) :: ss) = prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
-
-(* While *)
-| prettyPrint indent (While (boolex, stmtlist)::ss) = prettyPrintSpace indent ^ "while (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-^ prettyPrint (indent + 4) stmtlist
-^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
-
-(* If-Else *)
-| prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
-prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-^ prettyPrint (indent + 4) ifPart 
-^ prettyPrintSpace indent ^ "} " 
-^ prettyPrintSpace indent ^ "else {\n" 
-^ prettyPrint (indent + 4) elsePart
-^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
-
-(* Stop *)
-| prettyPrint indent (Stop :: ss) = prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
-
-(* End of recursion *)
-| prettyPrint indent _ = "";
+  (* Move *)
+  | prettyPrint indent (Forward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Forward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Backward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Backward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Right (distance) :: ss) =
+      prettyPrintSpace indent ^ "Right(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrint indent (Left (distance) :: ss) =
+      prettyPrintSpace indent ^ "Left(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  
+  (* Assignment *)
+  | prettyPrint indent (Assignment(var,e) :: ss) =
+      prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
+  
+  (* While *)
+  | prettyPrint indent (While (boolex, stmtlist)::ss) =
+      prettyPrintSpace indent ^ "While (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+    ^ prettyPrint (indent + 4) stmtlist
+    ^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
+  
+  (* If-Else *)
+  | prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
+      prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+    ^ prettyPrint (indent + 4) ifPart 
+    ^ prettyPrintSpace indent ^ "} " 
+    ^ prettyPrintSpace indent ^ "else {\n" 
+    ^ prettyPrint (indent + 4) elsePart
+    ^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
+  
+  (* Stop *)
+  | prettyPrint indent (Stop :: ss) =
+      prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
+  
+  (* End of recursion *)
+  | prettyPrint indent _ = "";
 
 
 (* old testing code
