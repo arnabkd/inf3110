@@ -122,8 +122,7 @@ and step state (Stop::_) = state
                                                                 val dir = d;
                                                                 val e1 = eval bs ex1;
                                                                 val e2 = eval bs ex2;
-                                                                val pr = "Start(" ^ Int.toString (e1) ^ ", "^Int.toString (e2) ^ ")\n"
-                                                              in (*print pr;*)
+                                                              in
                                                                 step (State (b,Up,(e1, e2),dir,bs)) ss
                                                               end
 
@@ -131,29 +130,25 @@ and step state (Stop::_) = state
   | step (State (b,p,pos,dir,bs)) (Right e::ss)            =  let
                                                                 val v = eval bs e;
                                                                 val s = State (b,p, calculatePos pos dir v "R", calculateDir dir "R", bs);
-                                                                val pr = "Right(" ^ Int.toString (v) ^ ")\n";
-                                                              in (*print pr;*) step s ss end
+                                                              in step s ss end
 
   (* LEFT *)
   | step (State (b,p,pos,dir,bs)) (Left e::ss)             =  let
                                                                 val v = eval bs e
                                                                 val s = State (b,p, calculatePos pos dir v "L", calculateDir dir "L", bs);
-                                                                val pr = "Left(" ^ Int.toString (v) ^ ")\n"
-                                                              in (*print pr;*) step s ss end
+                                                              in step s ss end
 
   (* FORWARD *)
   | step (State (b,p,pos,dir,bs)) (Forward e::ss)          =  let
                                                                 val v = eval bs e
                                                                 val s = State (b,p, calculatePos pos dir v "F", calculateDir dir "F", bs);
-                                                                val pr = "Forward(" ^ Int.toString (v) ^ ")\n"
-                                                              in (*print pr;*) step s ss end
+                                                              in step s ss end
 
   (* BACKWARD *)
   | step (State (b,p,pos,dir,bs)) (Backward e::ss)         =  let
                                                                 val v = eval bs e
                                                                 val s = State (b,p, calculatePos pos dir v "B", calculateDir dir "B", bs);
-                                                                val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
-                                                              in (*print pr;*) step s ss end
+                                                              in step s ss end
 
   (* IF *)
   | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
