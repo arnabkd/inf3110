@@ -59,7 +59,9 @@ type position = int*int;
 type board    = unit; (* ... *)
 type bindings = string -> int option;
 
-datatype state = State of board * pen * position * direction * bindings;
+datatype state = State of board * pen * position * direction * bindings * grid;
+
+exception OutOfGrid;
 
 fun eval binding (Const i) = i 
   | eval binding (Ident var) = valOf (binding var)
@@ -75,10 +77,9 @@ fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b
   
 (* Could use `fold` here *)
 fun initialState nil acc = acc
-  | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
-                                                                                                                            else find var));
+  | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find,gr)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
+                                                                                                                            else find var,gr));
 
-(* TODO: take direction into account *)
 fun calculatePos (x,y) N i "R" = (x+i,y)
   | calculatePos (x,y) S i "R" = (x-i,y)
   | calculatePos (x,y) E i "R" = (x,y-i)
@@ -95,6 +96,19 @@ fun calculatePos (x,y) N i "R" = (x+i,y)
   | calculatePos (x,y) S i "B" = (x,y+i)
   | calculatePos (x,y) E i "B" = (x-i,y)
   | calculatePos (x,y) W i "B" = (x+i,y);
+
+fun getNewPos (x,y) f i t (Size(gx, gy)) =
+  let
+    val np = calculatePos (x,y) f i t
+  in
+    (* check if outside grid *)
+    if (#1 np) <= 0 orelse (#1 np) > gx then
+      raise OutOfGrid
+    else if (#2 np) <= 0 orelse (#2 np) > gy then
+      raise OutOfGrid
+    else
+      np
+  end
 
 fun calculateDir dir "F" = dir
   | calculateDir  N  "R" = E
@@ -140,55 +154,55 @@ fun prettyPrintDirection N = "N"
   | prettyPrintDirection W = "W"
 
 fun prettyPrintDecls (Var (id,x) :: ss) =
-    prettyPrintSpace 0 ^ "var " ^ id ^ " = " ^ (prettyPrintExp x) ^ ";\n" ^ prettyPrintDecl ss
-  | prettyPrintDecl _ = ""
+    prettyPrintSpace 0 ^ "var " ^ id ^ " = " ^ (prettyPrintExp x) ^ ";\n" ^ prettyPrintDecls ss
+  | prettyPrintDecls _ = ""
 
 fun prettyPrintStmts indent
   (* Start *)
                        (Start (x,y,direction) :: ss) =
       prettyPrintSpace indent ^ "start("
     ^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
-    ^ ")\n" ^ prettyPrint indent ss
+    ^ ")\n" ^ prettyPrintStmts indent ss
 
   (* Pen *)
-  | prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
-  | prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
+  | prettyPrintStmts indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrintStmts indent ss
+  | prettyPrintStmts indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrintStmts indent ss
 
   (* Move *)
-  | prettyPrint indent (Forward (distance) :: ss) =
-      prettyPrintSpace indent ^ "Forward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Backward (distance) :: ss) =
-      prettyPrintSpace indent ^ "Backward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Right (distance) :: ss) =
-      prettyPrintSpace indent ^ "Right(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
-  | prettyPrint indent (Left (distance) :: ss) =
-      prettyPrintSpace indent ^ "Left(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+  | prettyPrintStmts indent (Forward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Forward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrintStmts indent ss
+  | prettyPrintStmts indent (Backward (distance) :: ss) =
+      prettyPrintSpace indent ^ "Backward(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrintStmts indent ss
+  | prettyPrintStmts indent (Right (distance) :: ss) =
+      prettyPrintSpace indent ^ "Right(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrintStmts indent ss
+  | prettyPrintStmts indent (Left (distance) :: ss) =
+      prettyPrintSpace indent ^ "Left(" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrintStmts indent ss
   
   (* Assignment *)
-  | prettyPrint indent (Assignment(var,e) :: ss) =
-      prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
+  | prettyPrintStmts indent (Assignment(var,e) :: ss) =
+      prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrintStmts indent ss
   
   (* While *)
-  | prettyPrint indent (While (boolex, stmtlist)::ss) =
+  | prettyPrintStmts indent (While (boolex, stmtlist)::ss) =
       prettyPrintSpace indent ^ "While (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-    ^ prettyPrint (indent + 4) stmtlist
-    ^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
+    ^ prettyPrintStmts (indent + 4) stmtlist
+    ^ prettyPrintSpace indent ^ "}\n" ^ prettyPrintStmts indent ss
   
   (* If-Else *)
-  | prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
+  | prettyPrintStmts indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
       prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
-    ^ prettyPrint (indent + 4) ifPart 
+    ^ prettyPrintStmts (indent + 4) ifPart 
     ^ prettyPrintSpace indent ^ "} " 
     ^ prettyPrintSpace indent ^ "else {\n" 
-    ^ prettyPrint (indent + 4) elsePart
-    ^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
+    ^ prettyPrintStmts (indent + 4) elsePart
+    ^ prettyPrintSpace indent ^ "}\n" ^prettyPrintStmts indent ss
   
   (* Stop *)
-  | prettyPrint indent (Stop :: ss) =
-      prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
+  | prettyPrintStmts indent (Stop :: ss) =
+      prettyPrintSpace indent ^ "stop\n" ^ prettyPrintStmts indent ss
   
   (* End of recursion *)
-  | prettyPrint indent _ = "";
+  | prettyPrintStmts indent _ = "";
 
 
 (* Step takes a state and a list of statements. Execute the first statement, and obtain an intermediate state.
@@ -198,75 +212,75 @@ fun prettyPrintStmts indent
 fun interpret (P (gr,R (decls,stmts))) =  let in
                                             print (prettyPrintDecls decls);
                                             print (prettyPrintStmts 0 stmts);
-                                            step (initialState decls (State ((), Up, (0,0), N, fn _ => NONE))) stmts
+                                            step (initialState decls (State ((), Up, (0,0), N, fn _ => NONE, gr))) stmts
                                           end
 and step
   (* STOP *)
     state (Stop::_) = let in print "stop"; state end
 
   (* START *)
-  | step (State (b,p,pos,dir,bs)) (Start(ex1, ex2, d)::ss) =  let
+  | step (State (b,p,pos,dir,bs,gr)) (Start(ex1, ex2, d)::ss) =  let
                                                                 val dir = d;
                                                                 val e1 = eval bs ex1;
                                                                 val e2 = eval bs ex2;
                                                               in
-                                                                step (State (b,Up,(e1, e2),dir,bs)) ss
+                                                                step (State (b,Up,(e1, e2),dir,bs,gr)) ss
                                                               end
 
   (* RIGHT *)
-  | step (State (b,p,pos,dir,bs)) (Right e::ss)            =  let
+  | step (State (b,p,pos,dir,bs,gr)) (Right e::ss)            =  let
                                                                 val v = eval bs e;
-                                                                val s = State (b,p, calculatePos pos dir v "R", calculateDir dir "R", bs);
+                                                                val s = State (b,p, getNewPos pos dir v "R" gr, calculateDir dir "R", bs, gr);
                                                               in step s ss end
 
   (* LEFT *)
-  | step (State (b,p,pos,dir,bs)) (Left e::ss)             =  let
+  | step (State (b,p,pos,dir,bs,gr)) (Left e::ss)             =  let
                                                                 val v = eval bs e
-                                                                val s = State (b,p, calculatePos pos dir v "L", calculateDir dir "L", bs);
+                                                                val s = State (b,p, getNewPos pos dir v "L" gr, calculateDir dir "L", bs, gr);
                                                               in step s ss end
 
   (* FORWARD *)
-  | step (State (b,p,pos,dir,bs)) (Forward e::ss)          =  let
+  | step (State (b,p,pos,dir,bs,gr)) (Forward e::ss)          =  let
                                                                 val v = eval bs e
-                                                                val s = State (b,p, calculatePos pos dir v "F", calculateDir dir "F", bs);
+                                                                val s = State (b,p, getNewPos pos dir v "F" gr, calculateDir dir "F", bs, gr);
                                                               in step s ss end
 
   (* BACKWARD *)
-  | step (State (b,p,pos,dir,bs)) (Backward e::ss)         =  let
+  | step (State (b,p,pos,dir,bs,gr)) (Backward e::ss)         =  let
                                                                 val v = eval bs e
-                                                                val s = State (b,p, calculatePos pos dir v "B", calculateDir dir "B", bs);
+                                                                val s = State (b,p, getNewPos pos dir v "B" gr, calculateDir dir "B", bs, gr);
                                                               in step s ss end
 
   (* IF *)
-  | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
+  | step (State (b,p,pos,dir,bs,gr)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
                                                                   in
                                                                     if doIt then
-                                                                      let val new = step (State (b,p,pos,dir,bs)) sl1
+                                                                      let val new = step (State (b,p,pos,dir,bs,gr)) sl1
                                                                       in step new ss end
                                                                     else
-                                                                      let val new = step (State (b,p,pos,dir,bs)) sl2
+                                                                      let val new = step (State (b,p,pos,dir,bs,gr)) sl2
                                                                       in step new ss end
                                                                   end
 
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss)              =  let in step (State (b,Up,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs,gr)) (PenUp::ss)              =  let in step (State (b,Up,pos,dir,bs,gr)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss)            =  let in step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs,gr)) (PenDown::ss)            =  let in step (State (b,Down,pos,dir,bs,gr)) ss end
 
   (* ASSIGNMENT *)
-  | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
+  | step (State (b,p,pos,dir,bs,gr)) (Assignment (varName, exp):: ss) =  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
                                                                                                                     else bs var
-                                                                      in step (State (b,p,pos,dir,newVal)) ss end
+                                                                      in step (State (b,p,pos,dir,newVal,gr)) ss end
 
   (* WHILE*)
-  | step (State (b,p,pos,dir,bs)) (While (conditional, stmtlist)::ss) = let val conditionalVal = evalBoolExp bs conditional
+  | step (State (b,p,pos,dir,bs,gr)) (While (conditional, stmtlist)::ss) = let val conditionalVal = evalBoolExp bs conditional
                                                                         in
                                                                           if conditionalVal then
-                                                                            let val currentState = step (State (b,p,pos,dir,bs)) stmtlist
+                                                                            let val currentState = step (State (b,p,pos,dir,bs,gr)) stmtlist
                                                                             in step currentState (While(conditional,stmtlist)::ss) end
                                                                           else
-                                                                            step (State (b,p,pos,dir,bs)) ss
+                                                                            step (State (b,p,pos,dir,bs,gr)) ss
                                                                         end
 
   | step state [] = state;
