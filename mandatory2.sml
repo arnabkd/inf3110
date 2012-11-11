@@ -78,7 +78,7 @@ fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b
 (* Could use `fold` here *)
 fun initialState nil acc = acc
   | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find,gr)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
-                                                                                                                            else find var,gr));
+                                                                                                                               else find var,gr));
 
 fun calculatePos (x,y) N i "R" = (x+i,y)
   | calculatePos (x,y) S i "R" = (x-i,y)
@@ -220,47 +220,47 @@ and step
 
   (* START *)
   | step (State (b,p,pos,dir,bs,gr)) (Start(ex1, ex2, d)::ss) =  let
-                                                                val dir = d;
-                                                                val e1 = eval bs ex1;
-                                                                val e2 = eval bs ex2;
-                                                              in
-                                                                step (State (b,Up,(e1, e2),dir,bs,gr)) ss
-                                                              end
+                                                                   val dir = d;
+                                                                   val e1 = eval bs ex1;
+                                                                   val e2 = eval bs ex2;
+                                                                 in
+                                                                   step (State (b,Up,(e1, e2),dir,bs,gr)) ss
+                                                                 end
 
   (* RIGHT *)
   | step (State (b,p,pos,dir,bs,gr)) (Right e::ss)            =  let
-                                                                val v = eval bs e;
-                                                                val s = State (b,p, getNewPos pos dir v "R" gr, calculateDir dir "R", bs, gr);
-                                                              in step s ss end
+                                                                   val v = eval bs e;
+                                                                   val s = State (b,p, getNewPos pos dir v "R" gr, calculateDir dir "R", bs, gr);
+                                                                 in step s ss end
 
   (* LEFT *)
   | step (State (b,p,pos,dir,bs,gr)) (Left e::ss)             =  let
-                                                                val v = eval bs e
-                                                                val s = State (b,p, getNewPos pos dir v "L" gr, calculateDir dir "L", bs, gr);
-                                                              in step s ss end
+                                                                   val v = eval bs e
+                                                                   val s = State (b,p, getNewPos pos dir v "L" gr, calculateDir dir "L", bs, gr);
+                                                                 in step s ss end
 
   (* FORWARD *)
   | step (State (b,p,pos,dir,bs,gr)) (Forward e::ss)          =  let
-                                                                val v = eval bs e
-                                                                val s = State (b,p, getNewPos pos dir v "F" gr, calculateDir dir "F", bs, gr);
-                                                              in step s ss end
+                                                                   val v = eval bs e
+                                                                   val s = State (b,p, getNewPos pos dir v "F" gr, calculateDir dir "F", bs, gr);
+                                                                 in step s ss end
 
   (* BACKWARD *)
   | step (State (b,p,pos,dir,bs,gr)) (Backward e::ss)         =  let
-                                                                val v = eval bs e
-                                                                val s = State (b,p, getNewPos pos dir v "B" gr, calculateDir dir "B", bs, gr);
-                                                              in step s ss end
+                                                                   val v = eval bs e
+                                                                   val s = State (b,p, getNewPos pos dir v "B" gr, calculateDir dir "B", bs, gr);
+                                                                 in step s ss end
 
   (* IF *)
   | step (State (b,p,pos,dir,bs,gr)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
-                                                                  in
-                                                                    if doIt then
-                                                                      let val new = step (State (b,p,pos,dir,bs,gr)) sl1
-                                                                      in step new ss end
-                                                                    else
-                                                                      let val new = step (State (b,p,pos,dir,bs,gr)) sl2
-                                                                      in step new ss end
-                                                                  end
+                                                                     in
+                                                                       if doIt then
+                                                                         let val new = step (State (b,p,pos,dir,bs,gr)) sl1
+                                                                         in step new ss end
+                                                                       else
+                                                                         let val new = step (State (b,p,pos,dir,bs,gr)) sl2
+                                                                         in step new ss end
+                                                                     end
 
   (* PENUP *)
   | step (State (b,_,pos,dir,bs,gr)) (PenUp::ss)              =  let in step (State (b,Up,pos,dir,bs,gr)) ss end
@@ -270,18 +270,18 @@ and step
 
   (* ASSIGNMENT *)
   | step (State (b,p,pos,dir,bs,gr)) (Assignment (varName, exp):: ss) =  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
-                                                                                                                    else bs var
-                                                                      in step (State (b,p,pos,dir,newVal,gr)) ss end
+                                                                                                                       else bs var
+                                                                         in step (State (b,p,pos,dir,newVal,gr)) ss end
 
   (* WHILE*)
   | step (State (b,p,pos,dir,bs,gr)) (While (conditional, stmtlist)::ss) = let val conditionalVal = evalBoolExp bs conditional
-                                                                        in
-                                                                          if conditionalVal then
-                                                                            let val currentState = step (State (b,p,pos,dir,bs,gr)) stmtlist
-                                                                            in step currentState (While(conditional,stmtlist)::ss) end
-                                                                          else
-                                                                            step (State (b,p,pos,dir,bs,gr)) ss
-                                                                        end
+                                                                           in
+                                                                             if conditionalVal then
+                                                                               let val currentState = step (State (b,p,pos,dir,bs,gr)) stmtlist
+                                                                               in step currentState (While(conditional,stmtlist)::ss) end
+                                                                             else
+                                                                               step (State (b,p,pos,dir,bs,gr)) ss
+                                                                           end
 
   | step state [] = state;
 
