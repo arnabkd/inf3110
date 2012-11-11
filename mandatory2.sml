@@ -8,7 +8,6 @@ datatype boolExp = LessThan of exp * exp
                  | Equal of exp * exp;
 
 
- (* incomplete *)
 datatype decl      = Var of string * exp;
 datatype direction = N | S | E | W;
 datatype move      = Forward | Backward | Left | Right;
@@ -24,36 +23,6 @@ datatype grid    = Size of int * int;
 datatype robot   = R of decl list * stmt list;
 datatype program = P of grid * robot;
 
-(*val p1 = [Stop];*)
-
-(*val p2 = [Start (Const 0, Const 0, N), Stop];*)
-
-(*val decls1 = [Var ("x", Const 5)
-             ,Var ("y", Ident "x")
-             ,Var ("z", Ident "a")];*)
-
-(*
-- val State (_,_,_,_,bs) = initialState decls1 (State ((), Up, (0,0), N, fn _ => NONE));
-val bs = fn : bindings
-- bs "x";
-val it = SOME 5 : int option
-- bs "y";
-
-uncaught exception Fail [Fail: not implemented yet]
-  raised at: m.sml:47.36-47.62
-*)
-
-(*
-val p = [Start (Const 23, Const 30, S)
-        ,Forward (Const 15)
-        ,PenUp
-        ,Left (Const 15)
-        , Right (Add (Const 2) (Const 3))
-        , PenDown
-        , Backward (Add (Const 10) (Const 27))
-        , Stop];
-*)
-
 datatype pen  = Up | Down;
 type position = int*int;
 type board    = unit; (* ... *)
@@ -68,7 +37,6 @@ fun eval binding (Const i) = i
   | eval binding (Plus (a,b)) = (eval binding a) + (eval binding b)
   | eval binding (Minus (a,b)) = (eval binding a) - (eval binding b)
   | eval binding (Mult (a,b)) = (eval binding a) * (eval binding b);
-  (*| eval binding _ = raise Fail "not implemented yet"; *)
 
 
 fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b)
@@ -124,15 +92,6 @@ fun calculateDir dir "F" = dir
   | calculateDir  W  "L" = S
   | calculateDir  W  "B" = E;
 
-
-(* Example:
-
-- interpret (P (nil,[Move (Const 1)]));
-
-uncaught exception Match [nonexhaustive match failure]
-  raised at: m.sml:67.82
-
-*)
 
 fun prettyPrintSpace 0 = " "
   | prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
@@ -284,29 +243,6 @@ and step
                                                                            end
 
   | step state [] = state;
-
-
-(* old testing code
-let
-	val decl1 = [Var ("x", Const 5) 
-	,Var ("y", Ident "x")];
-	val test1 = [Start (Const 0, Const 0, E)
-				, PenDown
-				, PenUp
-	            , Forward(Const 3) 
-				, Left(Const 2)
-				, Right(Const 5)
-				, Backward (Const 10)
-				, Assignment ("x", Const 39)
-				, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp, Assignment("x", Const 100)]) 
-				, IfThenElse((LessThan (Ident "x", Const 42)), [PenDown], [PenUp, Forward (Plus (Ident "x", Const 2))])
-				, Stop]
-in
-	print "\n-Testprogram number 1-\n";
-	print (prettyPrint 0 test1);
-	interpret(P(Size(10,10), R([], test1)))
-end;*)
-
 
 
 (* Menu *)
