@@ -146,7 +146,7 @@ and step state (Stop::_) = state
   | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let 
 																	val doIt = evalBoolExp bs e
 																  in
-																	if doIt = true then
+																	if doIt then
 																	let val new = step (State (b,p,pos,dir,bs)) sl1
 	    															in
 																		step new ss
@@ -161,10 +161,10 @@ and step state (Stop::_) = state
 														
   
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in (*print "PenUp()\n";*) step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in step (State (b,Up,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in (*print "PenDown()\n";*) step (State (b,Up,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in step (State (b,Down,pos,dir,bs)) ss end
   
   (* ASSIGNMENT *)
   | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =
@@ -222,13 +222,13 @@ fun prettyPrintDirection N = "N"
 | prettyPrintDirection W = "W"
 
 
-fun prettyPrint indent (Start (x,y,direction)::ss) = prettyPrintSpace indent ^ "start("
+fun prettyPrint indent (Start (x,y,direction) :: ss) = prettyPrintSpace indent ^ "start("
 ^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
 ^ ")\n" ^ prettyPrint indent ss
 
 (* Pen *)
-| prettyPrint indent (PenUp::ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
-| prettyPrint indent (PenDown::ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
+| prettyPrint indent (PenUp :: ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
+| prettyPrint indent (PenDown :: ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
 
 (* Move *)
 | prettyPrint indent (Forward (distance) :: ss) = prettyPrintSpace indent ^ "Forward (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
@@ -237,9 +237,24 @@ fun prettyPrint indent (Start (x,y,direction)::ss) = prettyPrintSpace indent ^ "
 | prettyPrint indent (Left (distance) :: ss) = prettyPrintSpace indent ^ "Left (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
 
 (* Assignment *)
+| prettyPrint indent (Assignment(var,e) :: ss) = prettyPrintSpace indent ^ "var "^ var ^ " = " ^ (prettyPrintExp e)  ^ "\n" ^ prettyPrint indent ss
+
+(* While *)
+| prettyPrint indent (While (boolex, stmtlist)::ss) = prettyPrintSpace indent ^ "while (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+^ prettyPrint (indent + 4) stmtlist
+^ prettyPrintSpace indent ^ "}\n" ^ prettyPrint indent ss
+
+(* If-Else *)
+| prettyPrint indent (IfThenElse (boolex, ifPart, elsePart)::ss) = 
+prettyPrintSpace indent ^ "if (" ^ prettyPrintBoolExp boolex ^ ") {\n" 
+^ prettyPrint (indent + 4) ifPart 
+^ prettyPrintSpace indent ^ "} " 
+^ prettyPrintSpace indent ^ "else {\n" 
+^ prettyPrint (indent + 4) elsePart
+^ prettyPrintSpace indent ^ "}\n" ^prettyPrint indent ss
 
 (* Stop *)
-| prettyPrint indent (Stop::ss) = prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
+| prettyPrint indent (Stop :: ss) = prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
 
 (* End of recursion *)
 | prettyPrint indent _ = "";
@@ -255,9 +270,9 @@ let
 				, Left(Const 2)
 				, Right(Const 5)
 				, Backward (Const 10)
-				(*, Assignment ("x", Const 39)
-				(*, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp]) *)
-				, IfThenElse((LessThan (Const 3, Const 4)), [PenDown], []) *)
+				, Assignment ("x", Const 39)
+				, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp, Assignment("x", Const 100)]) 
+				, IfThenElse((LessThan (Ident "x", Const 42)), [PenDown], [PenUp, Forward (Plus (Ident "x", Const 2))])
 				, Stop]
 in
 	print "\n-Testprogram number 1-\n";
