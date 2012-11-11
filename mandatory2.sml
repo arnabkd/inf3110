@@ -120,28 +120,28 @@ and step state (Stop::_) = state
 														   	val e1 = eval bs ex1;
 														   	val e2 = eval bs ex2;
 														   	val pr = "Start(" ^ Int.toString (e1) ^ ", "^Int.toString (e2) ^ ")\n"
-														   	in print pr;
+														   	in (*print pr;*)
 														   	step (State (b,Up,(e1, e2),dir,bs)) ss end
   (* RIGHT *)
   | step (State (b,p,pos,dir,bs)) (Right e::ss) = let val v = eval bs e
                                                   val s = State (b,p, calculatePos pos dir v "R", calculateDir dir "R", bs); 
 												  val pr = "Right(" ^ Int.toString (v) ^ ")\n"
-                                                  in print pr; step s ss end
+                                                  in (*print pr;*) step s ss end
   (* LEFT *)
   | step (State (b,p,pos,dir,bs)) (Left e::ss) = let val v = eval bs e
                                                   val s = State (b,p, calculatePos pos dir v "L", calculateDir dir "L", bs);
 												  val pr = "Left(" ^ Int.toString (v) ^ ")\n"
-                                                  in print pr; step s ss end
+                                                  in (*print pr;*) step s ss end
   (* FORWARD *)
   | step (State (b,p,pos,dir,bs)) (Forward e::ss) = let val v = eval bs e
                                                   val s = State (b,p, calculatePos pos dir v "F", calculateDir dir "F", bs);
 												  val pr = "Forward(" ^ Int.toString (v) ^ ")\n"
-                                                  in print pr; step s ss end
+                                                  in (*print pr;*) step s ss end
   (* BACKWARD *)
   | step (State (b,p,pos,dir,bs)) (Backward e::ss) = let val v = eval bs e
                                                   val s = State (b,p, calculatePos pos dir v "B", calculateDir dir "B", bs);
 												  val pr = "Backward(" ^ Int.toString (v) ^ ")\n"
-                                                  in print pr; step s ss end
+                                                  in (*print pr;*) step s ss end
   (* IF *)
   | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let 
 																	val doIt = evalBoolExp bs e
@@ -161,10 +161,10 @@ and step state (Stop::_) = state
 														
   
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in print "PenUp()\n"; step (State (b,Down,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss) = let in (*print "PenUp()\n";*) step (State (b,Down,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in print "PenDown()\n"; step (State (b,Up,pos,dir,bs)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss) = let in (*print "PenDown()\n";*) step (State (b,Up,pos,dir,bs)) ss end
   
   (* ASSIGNMENT *)
   | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =
@@ -202,18 +202,65 @@ uncaught exception Match [nonexhaustive match failure]
 
 *)
 
+fun prettyPrintSpace 0 = " "
+| prettyPrintSpace indent = " " ^ prettyPrintSpace (indent - 1)
+
+fun prettyPrintExp (Const i) = Int.toString (i)
+| prettyPrintExp (Ident var) = var
+| prettyPrintExp (Plus (a,b)) = (prettyPrintExp a) ^ " + " ^ (prettyPrintExp b)
+| prettyPrintExp (Minus (a,b)) = (prettyPrintExp a) ^ " - " ^ (prettyPrintExp b)
+| prettyPrintExp (Mult (a,b)) = (prettyPrintExp a) ^ " * " ^ (prettyPrintExp b)
+
+
+fun prettyPrintBoolExp (LessThan (a,b)) = (prettyPrintExp a) ^ " < " ^ (prettyPrintExp b)
+| prettyPrintBoolExp (Equal (a,b)) = (prettyPrintExp a) ^ " = " ^ (prettyPrintExp b)
+| prettyPrintBoolExp (MoreThan (a,b)) = (prettyPrintExp a) ^ " > " ^ (prettyPrintExp b)
+
+fun prettyPrintDirection N = "N"
+| prettyPrintDirection S = "S"
+| prettyPrintDirection E = "E"
+| prettyPrintDirection W = "W"
+
+
+fun prettyPrint indent (Start (x,y,direction)::ss) = prettyPrintSpace indent ^ "start("
+^ (prettyPrintExp x) ^ "," ^ (prettyPrintExp y) ^ "," ^ (prettyPrintDirection direction)
+^ ")\n" ^ prettyPrint indent ss
+
+(* Pen *)
+| prettyPrint indent (PenUp::ss) = prettyPrintSpace indent ^ "Up()\n" ^ prettyPrint indent ss
+| prettyPrint indent (PenDown::ss) = prettyPrintSpace indent ^ "Down()\n" ^ prettyPrint indent ss
+
+(* Move *)
+| prettyPrint indent (Forward (distance) :: ss) = prettyPrintSpace indent ^ "Forward (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+| prettyPrint indent (Backward (distance) :: ss) = prettyPrintSpace indent ^ "Backward (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+| prettyPrint indent (Right (distance) :: ss) = prettyPrintSpace indent ^ "Right  (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+| prettyPrint indent (Left (distance) :: ss) = prettyPrintSpace indent ^ "Left (" ^ prettyPrintExp distance ^ ")\n" ^ prettyPrint indent ss
+
+(* Assignment *)
+
+(* Stop *)
+| prettyPrint indent (Stop::ss) = prettyPrintSpace indent ^ "stop\n" ^ prettyPrint indent ss
+
+(* End of recursion *)
+| prettyPrint indent _ = "";
+
+
 let
 	val decl1 = [Var ("x", Const 5) 
 	,Var ("y", Ident "x")];
 	val test1 = [Start (Const 0, Const 0, E)
-	            , Forward(Const 3)
 				, PenDown
+				, PenUp
+	            , Forward(Const 3) 
 				, Left(Const 2)
-				, Assignment ("x", Const 39)
+				, Right(Const 5)
+				, Backward (Const 10)
+				(*, Assignment ("x", Const 39)
 				(*, While ((LessThan (Ident "x", Const 42)),[PenDown, PenUp]) *)
-				, IfThenElse((LessThan (Const 3, Const 4)), [PenDown], [])
+				, IfThenElse((LessThan (Const 3, Const 4)), [PenDown], []) *)
 				, Stop]
 in
 	print "\n-Testprogram number 1-\n";
+	print (prettyPrint 0 test1);
 	interpret(P(Size(10,10), R([], test1)))
 end;
