@@ -24,11 +24,12 @@ datatype robot   = R of decl list * stmt list;
 datatype program = P of grid * robot;
 
 datatype pen  = Up | Down;
+
 type position = int*int;
-type board    = unit; (* ... *)
+type board    = bool list list;
 type bindings = string -> int option;
 
-datatype state = State of board * pen * position * direction * bindings * grid;
+datatype state = State of board * pen * position * direction * bindings;
 
 exception OutOfGrid;
 
@@ -45,8 +46,8 @@ fun evalBoolExp bindings (LessThan (a,b)) = (eval bindings a) < (eval bindings b
   
 (* Could use `fold` here *)
 fun initialState nil acc = acc
-  | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find,gr)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
-                                                                                                                               else find var,gr));
+  | initialState ((Var (v,e))::vs) (State (b,p,pos,dir,find)) = initialState vs (State (b,p,pos,dir, fn var => if (var = v) then SOME (eval (find) e)
+                                                                                                                               else find var));
 
 fun calculatePos (x,y) N i "R" = (x+i,y)
   | calculatePos (x,y) S i "R" = (x-i,y)
@@ -65,9 +66,11 @@ fun calculatePos (x,y) N i "R" = (x+i,y)
   | calculatePos (x,y) E i "B" = (x-i,y)
   | calculatePos (x,y) W i "B" = (x+i,y);
 
-fun getNewPos (x,y) f i t (Size(gx, gy)) =
+fun getNewPos (x,y) f i t board =
   let
     val np = calculatePos (x,y) f i t
+    val gx = List.length(board)
+    val gy = List.length(hd(board))
   in
     (* check if outside grid *)
     if (#1 np) <= 0 orelse (#1 np) > gx then
@@ -169,92 +172,132 @@ fun prettyPrintStmts indent
     ^ prettyPrintSpace indent ^ "}\n" ^prettyPrintStmts indent ss
   
   (* Stop *)
-  | prettyPrintStmts indent (Stop :: ss) =
-      prettyPrintSpace indent ^ "stop\n" ^ prettyPrintStmts indent ss
+  (*| prettyPrintStmts indent (Stop :: ss) =
+      prettyPrintSpace indent ^ "stop\n" ^ prettyPrintStmts indent ss*)
   
   (* End of recursion *)
   | prettyPrintStmts indent _ = "";
+
+
+(* for printing out the board *)
+fun getBoardBox cols (x,y)  = case cols of
+                                []    => ""
+                              | a::ab => (if x = 1 andalso y = 1 then "#"
+                                        else if a = true then "X"
+                                        else "·") ^ (getBoardBox ab (x-1, y))
+fun getBoardLine rows (x,y) = case rows of
+                                []    => ""
+                              | a::ab => (getBoardLine ab (x, y-1)) ^ (getBoardBox a (x, y)) ^ "\n" (* reverse listing, x0 at bottom *)
+fun getBoardText b (x,y) =  let in
+                              "\nBoard layout:\n"
+                            ^ (getBoardLine b (x,y))
+                            ^ "# = current position, X = pen drawed, · = blank area\n\n"
+                            end
+
+
+(* drawing on board *)
+fun drawfieldhlp b cy y x = if cy = y then List.take(b, x-1) @ [true] @ List.drop(b, x)
+                            else b
+fun drawfield b (x,y) cy  = case b of
+                              []     => []
+                            | ba::bb => (drawfieldhlp ba cy y x) :: (drawfield bb (x,y) (cy+1))
+fun drawfields b (x,y) (rx,ry) bx = case bx of
+                                      []    => b
+                                    | _::ab => drawfields (drawfield b (x,y) 1) (x+rx,y+ry) (rx,ry) ab
+
+fun getDir N = ( 0, 1)
+  | getDir S = ( 0,~1)
+  | getDir E = ( 1, 0)
+  | getDir W = (~1, 0)
+
+(* do the move and draw if pen is down *)
+fun move (State (b,p,pos,dir,bs)) newdir n =  let
+                                                val v = eval bs n;
+                                                val newpos = getNewPos pos dir v newdir b;
+                                                val nd = calculateDir dir newdir
+                                                val s = State (b, p, newpos, nd, bs)
+                                              in
+                                                case p of
+                                                  Down => (State ((drawfields b pos (getDir nd) (List.tabulate(v, fn i => []))),p,newpos,nd,bs))
+                                                  | _  => s
+                                              end
+
+
+(* creating board *)
+fun getBoardHelper y i = List.tabulate(y, fn i => false)
+fun getBoard (Size(x,y)) = List.tabulate(x, (getBoardHelper y));
 
 
 (* Step takes a state and a list of statements. Execute the first statement, and obtain an intermediate state.
    If we need to continue (i.e. not STOP), then use intermediate state to interpret remaining statements.
    Interpret runs the whole program.
 *)
-fun interpret (P (gr,R (decls,stmts))) =  let in
+fun interpret (P (gr,R (decls,stmts))) =  let
+                                            val b = getBoard gr
+                                          in
                                             print (prettyPrintDecls decls);
                                             print (prettyPrintStmts 0 stmts);
-                                            step (initialState decls (State ((), Up, (0,0), N, fn _ => NONE, gr))) stmts
+                                            step (initialState decls (State (b, Up, (0,0), N, fn _ => NONE))) stmts;
+                                            "interpret finished"
                                           end
 and step
   (* STOP *)
-    state (Stop::_) = let in print "stop"; state end
+    (State (b,p,(x,y),dir,bs)) (Stop::_) =  let in
+                                              print ((prettyPrintSpace 0) ^ "stop (x:" ^ Int.toString(x) ^ " y:" ^ Int.toString(y) ^ " direction:" ^ (prettyPrintDirection dir) ^ ")\n");
+                                              print (getBoardText b (x,y));
+                                              (State (b,p,(x,y),dir,bs))
+                                            end
 
   (* START *)
-  | step (State (b,p,pos,dir,bs,gr)) (Start(ex1, ex2, d)::ss) =  let
-                                                                   val dir = d;
-                                                                   val e1 = eval bs ex1;
-                                                                   val e2 = eval bs ex2;
-                                                                 in
-                                                                   step (State (b,Up,(e1, e2),dir,bs,gr)) ss
-                                                                 end
+  | step (State (b,p,pos,dir,bs)) (Start(ex1, ex2, d)::ss) =  let
+                                                                val dir = d;
+                                                                val e1 = eval bs ex1;
+                                                                val e2 = eval bs ex2;
+                                                              in
+                                                                step (State (b,Up,(e1, e2),dir,bs)) ss
+                                                              end
 
   (* RIGHT *)
-  | step (State (b,p,pos,dir,bs,gr)) (Right e::ss)            =  let
-                                                                   val v = eval bs e;
-                                                                   val s = State (b,p, getNewPos pos dir v "R" gr, calculateDir dir "R", bs, gr);
-                                                                 in step s ss end
-
+  | step state (Right e::ss)            =  step (move state "R" e) ss
   (* LEFT *)
-  | step (State (b,p,pos,dir,bs,gr)) (Left e::ss)             =  let
-                                                                   val v = eval bs e
-                                                                   val s = State (b,p, getNewPos pos dir v "L" gr, calculateDir dir "L", bs, gr);
-                                                                 in step s ss end
-
+  | step state (Left e::ss)             =  step (move state "L" e) ss
   (* FORWARD *)
-  | step (State (b,p,pos,dir,bs,gr)) (Forward e::ss)          =  let
-                                                                   val v = eval bs e
-                                                                   val s = State (b,p, getNewPos pos dir v "F" gr, calculateDir dir "F", bs, gr);
-                                                                 in step s ss end
-
+  | step state (Forward e::ss)          =  step (move state "F" e) ss
   (* BACKWARD *)
-  | step (State (b,p,pos,dir,bs,gr)) (Backward e::ss)         =  let
-                                                                   val v = eval bs e
-                                                                   val s = State (b,p, getNewPos pos dir v "B" gr, calculateDir dir "B", bs, gr);
-                                                                 in step s ss end
-
+  | step state (Backward e::ss)         =  step (move state "B" e) ss
   (* IF *)
-  | step (State (b,p,pos,dir,bs,gr)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
-                                                                     in
-                                                                       if doIt then
-                                                                         let val new = step (State (b,p,pos,dir,bs,gr)) sl1
-                                                                         in step new ss end
-                                                                       else
-                                                                         let val new = step (State (b,p,pos,dir,bs,gr)) sl2
-                                                                         in step new ss end
-                                                                     end
+  | step (State (b,p,pos,dir,bs)) (IfThenElse(e, sl1, sl2)::ss) = let val doIt = evalBoolExp bs e
+                                                                    in
+                                                                      if doIt then
+                                                                        let val new = step (State (b,p,pos,dir,bs)) sl1
+                                                                        in step new ss end
+                                                                      else
+                                                                        let val new = step (State (b,p,pos,dir,bs)) sl2
+                                                                        in step new ss end
+                                                                  end
 
   (* PENUP *)
-  | step (State (b,_,pos,dir,bs,gr)) (PenUp::ss)              =  let in step (State (b,Up,pos,dir,bs,gr)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenUp::ss)              =  let in step (State (b,Up,pos,dir,bs)) ss end
 
   (* PENDOWN *)
-  | step (State (b,_,pos,dir,bs,gr)) (PenDown::ss)            =  let in step (State (b,Down,pos,dir,bs,gr)) ss end
+  | step (State (b,_,pos,dir,bs)) (PenDown::ss)            =  let val nb = drawfield b pos 1
+                                                              in step (State (nb,Down,pos,dir,bs)) ss end
 
   (* ASSIGNMENT *)
-  | step (State (b,p,pos,dir,bs,gr)) (Assignment (varName, exp):: ss) =  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
-                                                                                                                       else bs var
-                                                                         in step (State (b,p,pos,dir,newVal,gr)) ss end
+  | step (State (b,p,pos,dir,bs)) (Assignment (varName, exp):: ss) =  let val newVal = fn var => if (var = varName) then SOME (eval (bs) exp)
+                                                                                                                    else bs var
+                                                                      in step (State (b,p,pos,dir,newVal)) ss end
 
   (* WHILE*)
-  | step (State (b,p,pos,dir,bs,gr)) (While (conditional, stmtlist)::ss) = let val conditionalVal = evalBoolExp bs conditional
-                                                                           in
-                                                                             if conditionalVal then
-                                                                               let val currentState = step (State (b,p,pos,dir,bs,gr)) stmtlist
-                                                                               in step currentState (While(conditional,stmtlist)::ss) end
-                                                                             else
-                                                                               step (State (b,p,pos,dir,bs,gr)) ss
-                                                                           end
-
-  | step state [] = state;
+  | step (State (b,p,pos,dir,bs)) (While (conditional, stmtlist)::ss) = let val conditionalVal = evalBoolExp bs conditional
+                                                                        in
+                                                                          if conditionalVal then
+                                                                            let val currentState = step (State (b,p,pos,dir,bs)) stmtlist
+                                                                            in step currentState (While(conditional,stmtlist)::ss) end
+                                                                          else
+                                                                            step (State (b,p,pos,dir,bs)) ss
+                                                                        end
+| step state [] = state;
 
 
 (* Menu *)
@@ -269,7 +312,7 @@ fun showtests () =
 
 
 (* Testing code 1 *)
-fun t1 ():state =
+fun t1 () =
   let
     val stmts = [
       Start(Const 23, Const 30, W),
@@ -288,7 +331,7 @@ fun t1 ():state =
   end;
 
 (* Testing code 2 *)
-fun t2 ():state =
+fun t2 () =
   let
     val decl = [
       Var("i", Const 5),
@@ -313,7 +356,7 @@ fun t2 ():state =
 (* Testing code 3 skipped *)
 
 (* Testing code 4 *)
-fun t4 ():state =
+fun t4 () =
   let
     val decl = [
       Var("i", Const 5),
